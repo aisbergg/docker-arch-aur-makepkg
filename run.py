@@ -200,7 +200,7 @@ def makepkg(path):
     p.wait()
 
     if p.returncode != 0:
-        printError("Makepkg Error: {0}".format(p.stderr))
+        printError("Makepkg Error: {0}".format(p.stderr.read()))
         return False
 
     return True
@@ -233,6 +233,7 @@ def main(argv):
 
     if args.pacman_update:
         # upgrade pacman packages
+        printInfo("Upgrading packages...")
         p = Popen(['pacman', '-Syu'], stdout=PIPE, stderr=PIPE)
         p.wait()
         if p.returncode != 0:
@@ -329,8 +330,6 @@ def main(argv):
     if len(succeeded) > 0:
         printInfo("Successfully build:")
         print(" - " + "\n - ".join([p.name for p in succeeded]))
-    else:
-        printInfo("No Packages were build")
     if len(latest) > 0:
         printInfo("Packges up to date:")
         print(" - " + "\n - ".join([p.name for p in latest]))
