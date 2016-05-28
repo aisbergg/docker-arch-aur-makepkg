@@ -16,9 +16,10 @@ local_package_source_path = os.path.join(root_path, "local_src")
 build_path = os.path.abspath("/tmp/build")
 
 class ConsoleColors:
-    BLUE = '\033[94m'
-    RED = '\033[91m'
-    RESET = '\033[0m'
+    blue = '\033[94m'
+    red = '\033[91m'
+    yellow = '\033[93m'
+    reset = '\033[0m'
 
 class InvalidPackageSourceError(Exception):
     """ Invalid package source exception
@@ -50,10 +51,13 @@ class PacmanUpgradeError(Exception):
 
 
 def printInfo(message):
-    print(ConsoleColors.BLUE + message + ConsoleColors.RESET)
+    print(ConsoleColors.blue + message + ConsoleColors.reset)
+
+def printWarning(message):
+    print(ConsoleColors.yellow + message + ConsoleColors.reset)
 
 def printError(message):
-    print(ConsoleColors.RED + message + ConsoleColors.RESET)
+    print(ConsoleColors.red + message + ConsoleColors.reset)
 
 class LocalPackageSource():
     """ Represents a local source of a package
@@ -210,21 +214,21 @@ def main(argv):
     """
     parser = argparse.ArgumentParser(
         prog='aur-makepkg',
-        description='Download package definitions from AUR and execute makepkg',
+        description='Build Pacman packages with makepkg from local source or the AUR',
         epilog=''
     )
     parser.add_argument('-g', '--gid', dest='gid', type=int, default=-1,
                         help='GID for created packages')
     parser.add_argument('-k', '--keep-old-versions', dest='keep_old_versions',
                         action='store_true', default=False,
-                        help='Keep a package after a newer one is build')
+                        help='Keep older versions of a package after a newer one is build')
     parser.add_argument('-p', '--pacman-update', action='store_true',
                         dest='pacman_update', default=False,
                         help='')
     parser.add_argument('-u', '--uid', dest='uid', type=int, default=-1,
                         help='UID for created packages')
     parser.add_argument('package_names', nargs='+',
-                        help='Names of the packages to be downloaded an build from AUR')
+                        help='Name fo packages to be build from local source or the AUR')
     args = parser.parse_args(argv)
 
     if args.pacman_update:
@@ -276,7 +280,7 @@ def main(argv):
                 succeeded.append(lcl_src)
                 # copy created package
                 os.chdir(lcl_src.path)
-                pcm_pkg_file = glob.glob("{0}-*.tar.xz".format(lcl_src.name))[0]
+                pcm_pkg_file = glob.glob("{0}-*.pkg.tar.xz".format(lcl_src.name))[0]
                 dest = os.path.join(root_path, pcm_pkg_file)
                 shutil.copyfile(pcm_pkg_file, dest)
                 # set uid and gid
@@ -307,7 +311,7 @@ def main(argv):
                 succeeded.append(aur_src)
                 # copy created package
                 os.chdir(ppath)
-                pcm_pkg_file = glob.glob("{0}-*.tar.xz".format(aur_src.name))[0]
+                pcm_pkg_file = glob.glob("{0}-*.pkg.tar.xz".format(aur_src.name))[0]
                 dest = os.path.join(root_path, pcm_pkg_file)
                 shutil.copyfile(pcm_pkg_file, dest)
                 # set uid and gid
@@ -331,7 +335,7 @@ def main(argv):
         printInfo("Packges up to date:")
         print(" - " + "\n - ".join([p.name for p in latest]))
     if len(failed) > 0:
-        printInfo("Faild to build:")
+        printWarning("Faild to build:")
         print(" - " + "\n - ".join([p.name for p in failed]))
 
 try:
