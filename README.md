@@ -58,3 +58,7 @@ optional arguments:
   -p, --pacman-update
   -u UID, --uid UID     UID for created packages
 ```
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
