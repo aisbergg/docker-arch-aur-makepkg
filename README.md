@@ -106,5 +106,9 @@ optional arguments:
 
 Sometimes the dependencies that are needed to make a package are not properly listed as `makedepends` but as `depends`. The default behaviour is to only install the `makedepends`. With `--install-all-dependencies` this can be bypassed.
 
+> Linux Kernel Headers
+
+Package that provide deeper system functions and therefore need the linux kernel headers to be build should be avoided.
+
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
