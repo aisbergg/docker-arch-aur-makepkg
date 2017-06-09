@@ -17,7 +17,7 @@ import pacman
 local_source_dir = '/makepkg/local_src'
 build_dir = os.path.abspath('/makepkg/build')
 pacman_cache_dir = '/var/cache/pacman/pkg'
-build_for_architecture = 'x86_64'
+accepted_architectures = ['any', 'x86_64', 'i686']
 
 packages_in_cache = None
 packages_in_offical_repositories = None
@@ -366,9 +366,11 @@ class PackageSource(PackageBase):
 
         # package architecture
         architectures = self._parse_from_string('arch', file_content)
-        if build_for_architecture in architectures or architectures == 'any':
-            self.architecture = build_for_architecture
-        else:
+        for ac_arch in accepted_architectures:
+            if ac_arch in architectures:
+                self.architecture = ac_arch
+                break
+        if not self.architecture:
             raise InvalidPackageSourceError(
                 "Architecture of the package '{0}' is not supported".format(os.path.basename(self.path)))
 
