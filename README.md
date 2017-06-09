@@ -8,6 +8,7 @@ Using docker the build process of a package will be executed in a clean environm
 	- [Build the image](#build-the-image)
 	- [Usage](#usage)
 		- [Invoke](#invoke)
+	- [Installing the build packages](#installing-the-build-packages)
 	- [Troubleshooting](#troubleshooting)
 	- [License](#license)
 
