@@ -872,7 +872,7 @@ def main(argv):
         pwd.getpwuid(args.uid)
     except Exception:
         os.system(
-            "useradd -p /makepkg/build -m -g build-user -s /bin/bash -u {0} build-user".format(args.gid))
+            "useradd -p /makepkg/build -m -g {1} -s /bin/bash -u {0} build-user".format(args.uid, args.gid))
 
     global packages_in_cache, packages_in_offical_repositories
     packages_in_cache = [x for x in os.listdir(pacman_cache_dir) if
