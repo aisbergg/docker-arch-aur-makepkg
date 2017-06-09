@@ -230,7 +230,7 @@ class PacmanPackage(PackageBase):
     def install(self):
         printInfo("Installing package {0} {1}...".format(
             self.name, self.version))
-        rc, err = run_command(['pacman', '-S', '--noconfirm', self.name])
+        rc, err = run_command(['pacman', '-S', '--noconfirm', '--cachedir', pacman_cache_dir, self.name])
         if rc != 0:
             self.installation_status = 2
             self.error_info = Exception(
@@ -492,7 +492,7 @@ class PackageSource(PackageBase):
         if self.is_make_dependency:
             printInfo("Installing package '{0}', version '{1}'...".format(
                 self.name, self.version))
-            rc, err = run_command(['pacman', '-U', '--noconfirm',
+            rc, err = run_command(['pacman', '-U', '--noconfirm', '--cachedir', pacman_cache_dir,
                                   full_package_path])
             if rc != 0:
                 self.installation_status = 2
