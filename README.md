@@ -101,6 +101,11 @@ optional arguments:
   -u UID, --uid UID     UID of the build user
 ```
 
+## Installing the build packages
+This docker container is only for building the images not for installing those.
+
+Personally I distribute the package cache to my systems and use this [Installation Script](https://github.com/Aisbergg/install-local-pacman-packages) to handle this job.
+
 ## Troubleshooting
 > Package requirements ### were not met
 
@@ -108,7 +113,7 @@ Sometimes the dependencies that are needed to make a package are not properly li
 
 > Linux Kernel Headers
 
-Package that provide deeper system functions and therefore need the linux kernel headers to be build should be avoided.
+Packages that provide some system functionality and require the linux kernel headers to be build, should be avoided.
 
 > Signature issues
 
