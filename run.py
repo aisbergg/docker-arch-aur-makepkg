@@ -237,7 +237,7 @@ class PacmanPackage(PackageBase):
         if p.returncode != 0:
             self.installation_status = 2
             self.error_info = Exception(
-                "Failed to install package '{0}': {1}".format(self.name, out))
+                "Failed to install package '{0}': {1}".format(self.name, err))
             return
         self.installation_status = 1
 
