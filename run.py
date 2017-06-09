@@ -946,10 +946,9 @@ def main(argv):
         print_build_log(pkg_name, pkg_dict)
 
 
-main(sys.argv[1:])
-# try:
-#     main(sys.argv[1:])
-#     exit(0)
-# except Exception as e:
-#     printError(str(e))
-#     exit(1)
+try:
+    main(sys.argv[1:])
+    exit(0)
+except Exception as e:
+    printError(str(e))
+    exit(1)
