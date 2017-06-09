@@ -110,5 +110,9 @@ Sometimes the dependencies that are needed to make a package are not properly li
 
 Package that provide deeper system functions and therefore need the linux kernel headers to be build should be avoided.
 
+> Signature issues
+
+If you mount a mirrorlist that is not directly tied to the official *ArchLinux* distribution, because it is from *Manjaro* for example, then the Pacman package database and keys in the GPG keychain defer. In this case the installation of packages may fail because the signatures could not be validated. To solve this problem `SigLevel` in the `pacman.conf` can be set to `SigLevel = Optional TrustAll`. You should be beware of the security implications! When running the container the `--pacman-update` argument should then be passed along, to update the packages from your custom mirror.
+
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
