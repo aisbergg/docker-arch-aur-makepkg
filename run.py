@@ -874,14 +874,14 @@ def main(argv):
         os.system(
             "useradd -p /makepkg/build -m -g {1} -s /bin/bash -u {0} build-user".format(args.uid, args.gid))
 
+    # refresh pacman package database
+    printInfo("Update pacman package database...")
+    pacman.refresh()
+
     global packages_in_cache, packages_in_offical_repositories
     packages_in_cache = [x for x in os.listdir(pacman_cache_dir) if
                          os.path.isfile(os.path.join(pacman_cache_dir, x))]
     packages_in_offical_repositories = pacman.get_available()
-
-    # refresh pacman package database
-    printInfo("Update pacman package database...")
-    pacman.refresh()
 
     if args.pacman_update:
         # upgrade installed pacman packages
