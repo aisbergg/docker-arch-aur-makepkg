@@ -456,8 +456,7 @@ class PackageSource(PackageBase):
 
         """
         def set_uid_and_guid():
-            os.setgid(uid)
-            os.setuid(gid)
+            os.setuid(uid)
         return set_uid_and_guid
 
     def makepkg(self, uid, gid):
@@ -476,6 +475,9 @@ class PackageSource(PackageBase):
 
         # set uid and gid of the build dir
         os.chown(self.path, uid, gid)
+        for root, dirs, files in os.walk(self.path):
+            for momo in dirs + files:
+                os.chown(os.path.join(root, momo), uid, gid)
 
         printInfo("Building package {0} {1}...".format(
             self.name, self.version))
@@ -911,6 +913,8 @@ def main(argv):
                               False)
 
     # build packages
+    os.makedirs(build_dir, exist_ok=True)
+    os.chown(build_dir, args.uid, args.gid)
     for pkg_name in args.build_package_names:
         build_package_recursive(pkg_name,
                                 pkg_dict,
