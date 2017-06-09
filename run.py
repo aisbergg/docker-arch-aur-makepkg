@@ -8,6 +8,7 @@ import tempfile
 import pwd
 import grp
 import tarfile
+import time
 import urllib.request
 from subprocess import Popen, PIPE
 
@@ -229,15 +230,11 @@ class PacmanPackage(PackageBase):
     def install(self):
         printInfo("Installing package {0} {1}...".format(
             self.name, self.version))
-        p = Popen(['pacman', '-Sq', '--noconfirm', '--noprogressbar', self.name],
-                  stdout=PIPE,
-                  stderr=PIPE,
-                  universal_newlines=True)
-        out, err = p.communicate()
-        if p.returncode != 0:
+        rc, err = run_command(['pacman', '-S', '--noconfirm', self.name])
+        if rc != 0:
             self.installation_status = 2
             self.error_info = Exception(
-                "Failed to install package '{0}': {1}".format(self.name, err))
+                "Failed to install package '{0}': {1}".format(self.name, '\n'.join(err)))
             return
         self.installation_status = 1
 
@@ -453,14 +450,6 @@ class PackageSource(PackageBase):
 
         self.path = os.path.join(aur_pkg_download_path, i.name)
 
-    def _changeUser(self, uid, gid):
-        """ Temporarily change the UID and GID for code execution
-
-        """
-        def set_uid_and_guid():
-            os.setuid(uid)
-        return set_uid_and_guid
-
     def makepkg(self, uid, gid):
         """ Runs makepkg
 
@@ -484,15 +473,11 @@ class PackageSource(PackageBase):
         printInfo("Building package {0} {1}...".format(
             self.name, self.version))
         os.chdir(self.path)
-        p = Popen(['makepkg', '--force', '--nodeps', '--noconfirm'],
-                  stdout=PIPE,
-                  stderr=PIPE,
-                  universal_newlines=True, preexec_fn=self._changeUser(uid, gid))
-        p.wait()
 
-        if p.returncode != 0:
+        rc, err = run_command(['makepkg', '--force', '--nodeps', '--noconfirm'], uid)
+        if rc != 0:
             self.error_info = Exception("Failed to build package '{0}': {1}".format(
-                self.name, p.stderr.read()))
+                self.name, '\n'.join(err)))
             return False
 
         full_package_path = os.path.join(
@@ -506,16 +491,12 @@ class PackageSource(PackageBase):
         if self.is_make_dependency:
             printInfo("Installing package '{0}', version '{1}'...".format(
                 self.name, self.version))
-            p = Popen(['pacman', '-U', '--noconfirm', '--noprogressbar',
-                       full_package_path],
-                      stdout=PIPE,
-                      stderr=PIPE,
-                      universal_newlines=True)
-            p.wait()
-            if p.returncode != 0:
+            rc, err = run_command(['pacman', '-U', '--noconfirm',
+                                  full_package_path])
+            if rc != 0:
                 self.installation_status = 2
                 self.error_info = Exception(
-                    "Failed to install package '{0}'".format(self.name))
+                    "Failed to install package '{0}': {1}".format(self.name, '\n'.join(err)))
                 return False
             self.installation_status = 1
 
@@ -539,6 +520,39 @@ class PackageSource(PackageBase):
 
         """
         return self.dependencies + self.make_dependencies
+
+
+def change_user(uid):
+    """ Temporarily change the UID and GID for code execution
+
+    """
+    def set_uid_and_guid():
+        os.setuid(uid)
+    return set_uid_and_guid
+
+
+def run_command(command, uid=None):
+    if uid:
+        process = Popen(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, preexec_fn=change_user(uid))
+    else:
+        process = Popen(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
+    err = []
+    while True:
+        out = process.stdout.readline()
+        if out:
+            print(out.rstrip('\n'))
+        if process.poll() is not None:
+            break
+        time.sleep(.05)
+
+    for line in process.stdout.readlines():
+        print(line)
+    rc = process.poll()
+    if rc != 0:
+        for line in process.stderr.readlines():
+            printError(line.rstrip('\n'))
+            err.append(line.rstrip('\n'))
+    return (rc, err)
 
 
 def get_package_recursive(pkg_name,
