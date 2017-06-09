@@ -467,8 +467,9 @@ class PackageSource(PackageBase):
         # set uid and gid of the build dir
         os.chown(self.path, uid, gid)
         for root, dirs, files in os.walk(self.path):
-            for momo in dirs + files:
-                os.chown(os.path.join(root, momo), uid, gid)
+            for f in dirs + files:
+                if os.path.isfile(f) or os.path.isdir(f):
+                    os.chown(os.path.join(root, f), uid, gid)
 
         printInfo("Building package {0} {1}...".format(
             self.name, self.version))
@@ -945,9 +946,10 @@ def main(argv):
         print_build_log(pkg_name, pkg_dict)
 
 
-try:
-    main(sys.argv[1:])
-    exit(0)
-except Exception as e:
-    printError(str(e))
-    exit(1)
+main(sys.argv[1:])
+# try:
+#     main(sys.argv[1:])
+#     exit(0)
+# except Exception as e:
+#     printError(str(e))
+#     exit(1)
