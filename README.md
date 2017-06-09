@@ -3,8 +3,6 @@
 Dockerfile to build a Arch-Linux based container image to be used for automated creation of *[Pacman](https://wiki.archlinux.org/index.php/Pacman)* packages. The image is equipped with `makepkg` and various necessary build tools. It can pull package sources from the *[AUR](https://aur.archlinux.org/)* or use local sources.
 Using docker the build process of a package will be executed in a clean environment seperated from the host operating system. Therefore dependencies that where only needed for building a package won't pile up in your OS.
 
-<!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
-
 - [Docker - Arch AUR makepkg](#docker-arch-aur-makepkg)
 	- [Why another one?](#why-another-one)
 	- [Build the image](#build-the-image)
@@ -12,8 +10,6 @@ Using docker the build process of a package will be executed in a clean environm
 		- [Invoke](#invoke)
 	- [Troubleshooting](#troubleshooting)
 	- [License](#license)
-
-<!-- /TOC -->
 
 ---
 
