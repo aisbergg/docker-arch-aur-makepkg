@@ -272,6 +272,9 @@ class PackageSource(PackageBase):
     # version of the package to be build
     remove_dowloaded_source = False
 
+    # package source is build from git repository
+    build_from_git = False
+
     def __init__(self, name, remove_dowloaded_source, local_source_path=None):
         super().__init__(name)
         self.remove_dowloaded_source = remove_dowloaded_source
@@ -352,6 +355,7 @@ class PackageSource(PackageBase):
 
         # package name
         self.name = self._parse_from_string('pkgname', file_content)
+        self.build_from_git = self.name.endswith('-git')
 
         # package version (combined with release)
         version = self._parse_from_string('pkgver', file_content)
@@ -397,7 +401,7 @@ class PackageSource(PackageBase):
 
         if os.path.exists(pkg_build_dir) and \
            os.path.isdir(pkg_build_dir) and \
-           not self.remove_dowloaded_source:
+           (not self.remove_dowloaded_source or not self.build_from_git):
             old_pkgbuild_file = os.path.join(pkg_build_dir,
                                              'PKGBUILD')
             if os.path.exists(old_pkgbuild_file) and \
@@ -471,6 +475,12 @@ class PackageSource(PackageBase):
             self.error_info = Exception("Failed to build package '{0}': {1}".format(
                 self.name, '\n'.join(err)))
             return False
+
+        # get new version info when build from git
+        if self.build_from_git:
+            git_pkg = PackageSource(
+                self.name, False, self.path)
+            self.version = git_pkg.version
 
         full_package_path = os.path.join(
             pacman_cache_dir, self.get_package_file_name())
@@ -879,7 +889,8 @@ def main(argv):
                         action='store_true', default=False,
                         help="""Remove the source downloaded by 'makepkg' before build. If not
                             the sources will be kept, under the condition that the source is of the same
-                            version of the package to be build""")
+                            version of the package to be build. (Note: Sources of packages build from a Git repository
+                            will always be removed.)""")
     parser.add_argument('-u', '--uid', dest='uid', type=int, default=1000,
                         help="UID of the build user")
     parser.add_argument('build_package_names', nargs='+',

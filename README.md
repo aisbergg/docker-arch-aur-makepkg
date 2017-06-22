@@ -107,7 +107,8 @@ optional arguments:
                         Remove the source downloaded by 'makepkg' before
                         build. If not the sources will be kept, under the
                         condition that the source is of the same version of
-                        the package to be build
+                        the package to be build. (Note: Sources of packages
+                        build from a Git repository will always be removed.)
   -u UID, --uid UID     UID of the build user
 ```
 
