@@ -917,7 +917,11 @@ def main(argv):
     if args.pacman_update:
         # upgrade installed pacman packages
         printInfo("Upgrading installed pacman packages...")
-        pacman.upgrade()
+        rc, err = run_command(['pacman', '-Su', '--noconfirm', '--force',
+                               '--ignore', 'package-query', '--ignore', 'pacman-mirrorlist',
+                               '--cachedir', pacman_cache_dir], print_output=True)
+        if rc != 0:
+            raise Exception("Failed to upgrade Pacman packages: " + '\n'.join(err))
 
     pkg_dict = dict()
 
