@@ -9,6 +9,7 @@ import pwd
 import grp
 import tarfile
 import time
+import glob
 import urllib.request
 from subprocess import Popen, PIPE
 
@@ -167,8 +168,13 @@ class PackageBase:
 
     def _get_installation_status(self):
         """Get the installation status of the package."""
-        if pacman.is_installed(self.name):
-            pcm_info = pacman.get_info(self.name)
+        p = Popen(['package-query', '-Qiif', '%n', self.name],
+                  stdout=PIPE,
+                  stderr=PIPE,
+                  universal_newlines=True)
+        out, err = p.communicate()
+        if p.returncode == 0:
+            pcm_info = pacman.get_info(out.strip('\n '))
             if pcm_info['Version'] == self.version:
                 self.installation_status = 1
             else:
@@ -224,17 +230,19 @@ class PacmanPackage(PackageBase):
                 "No package with the name '{0}' exists in the official repositories".format(self.name))
 
     def install(self):
-        printInfo("Installing package {0} {1}...".format(
-            self.name, self.version))
-        rc, err = run_command(['pacman', '-S', '--noconfirm', '--force',
-                               '--ignore', 'package-query', '--ignore', 'pacman-mirrorlist',
-                               '--cachedir', pacman_cache_dir, self.name])
-        if rc != 0:
-            self.installation_status = 2
-            self.error_info = Exception(
-                "Failed to install package '{0}': {1}".format(self.name, '\n'.join(err)))
-            return
-        self.installation_status = 1
+        """Install the Pacman package."""
+        if self.installation_status != 1:
+            printInfo("Installing package {0} {1}...".format(
+                self.name, self.version))
+            rc, err = run_command(['pacman', '-S', '--noconfirm', '--force',
+                                   '--ignore', 'package-query', '--ignore', 'pacman-mirrorlist',
+                                   '--cachedir', pacman_cache_dir, self.name])
+            if rc != 0:
+                self.installation_status = 2
+                self.error_info = Exception(
+                    "Failed to install package '{0}': {1}".format(self.name, '\n'.join(err)))
+                return
+            self.installation_status = 1
 
 
 class PackageSource(PackageBase):
@@ -274,6 +282,9 @@ class PackageSource(PackageBase):
 
     # package source is build from git repository
     build_from_git = False
+
+    # package source is build from git repository
+    split_package_names = None
 
     def __init__(self, name, remove_dowloaded_source, local_source_path=None):
         super().__init__(name)
@@ -354,7 +365,17 @@ class PackageSource(PackageBase):
             file_content = f.read()
 
         # package name
-        self.name = self._parse_from_string('pkgname', file_content)
+        pkgbase = self._parse_from_string('pkgbase', file_content)
+        if pkgbase:
+            self.name = pkgbase
+            split_package_names = self._parse_from_string('pkgname', file_content)
+            self.split_package_names = []
+            for spn in split_package_names:
+                self.split_package_names.append(
+                    re.sub(r'\$\{{0,1}[A-Za-z_][A-Za-z0-9_]*\}{0,1}',
+                           pkgbase, spn, flags=re.IGNORECASE))
+        else:
+            self.name = self._parse_from_string('pkgname', file_content)
         self.build_from_git = self.name.endswith('-git')
 
         # package version (combined with release)
@@ -444,7 +465,7 @@ class PackageSource(PackageBase):
         tar.close()
         os.remove(pkg_tar_file_path)
 
-        self.path = os.path.join(aur_pkg_download_path, i.name)
+        self.path = os.path.join(aur_pkg_download_path, os.listdir(aur_pkg_download_path)[0])
 
     def makepkg(self, uid, gid):
         """Run makepkg.
@@ -482,26 +503,15 @@ class PackageSource(PackageBase):
                 self.name, False, self.path)
             self.version = git_pkg.version
 
-        full_package_path = os.path.join(
-            pacman_cache_dir, self.get_package_file_name())
-        # copy created package
-        shutil.move(os.path.join(self.path, self.get_package_file_name()),
-                    full_package_path)
-        # set uid and gid of the build package
-        os.chown(full_package_path, 0, 0)
+        for pkg_file in glob.glob(os.path.join(self.path, '*.pkg.tar.xz')):
+            pkg_dest = os.path.join(pacman_cache_dir, os.path.basename(pkg_file))
+            # move created package to Pacman package cache
+            shutil.move(pkg_file, pkg_dest)
+            # set uid and gid of the build package
+            os.chown(pkg_dest, 0, 0)
 
-        if self.is_make_dependency:
-            printInfo("Installing package '{0}', version '{1}'...".format(
-                self.name, self.version))
-            rc, err = run_command(['pacman', '-U', '--noconfirm', '--force',
-                                   '--ignore', 'package-query', '--ignore', 'pacman-mirrorlist',
-                                   '--cachedir', pacman_cache_dir, full_package_path])
-            if rc != 0:
-                self.installation_status = 2
-                self.error_info = Exception(
-                    "Failed to install package '{0}': {1}".format(self.name, '\n'.join(err)))
-                return False
-            self.installation_status = 1
+            if self.is_make_dependency:
+                self.install()
 
         return True
 
@@ -523,6 +533,29 @@ class PackageSource(PackageBase):
 
         """
         return self.dependencies + self.make_dependencies
+
+    def install(self):
+        """Install the build package."""
+        if self.installation_status != 1 and (self.build_status == 1 or self.build_status == 2):
+            pkg_names = [self.name]
+            # different names if package is a splitted package
+            if self.split_package_names:
+                pkg_names = self.split_package_names
+
+            for pkg_name in pkg_names:
+                printInfo("Installing package {0} {1}...".format(
+                    pkg_name, self.version))
+                rc, err = run_command(['pacman', '-U', '--noconfirm', '--force',
+                                       '--ignore', 'package-query', '--ignore', 'pacman-mirrorlist',
+                                       '--cachedir', pacman_cache_dir,
+                                       os.path.join(pacman_cache_dir, '{0}-{1}-{2}.pkg.tar.xz'.format(
+                                           pkg_name, self.version, self.architecture))])
+                if rc != 0:
+                    self.installation_status = 2
+                    self.error_info = Exception(
+                        "Failed to install package '{0}': {1}".format(pkg_name, '\n'.join(err)))
+                    return False
+                self.installation_status = 1
 
 
 def change_user(uid):
@@ -605,9 +638,13 @@ def get_package_recursive(pkg_name,
     if pkg_name in locally_available_package_sources:
         pkg_path = os.path.join(local_source_dir, pkg_name)
         lcl_pkg = PackageSource(pkg_name, remove_dowloaded_source, pkg_path)
+        if lcl_pkg.name in pkg_dict:
+            return
         lcl_pkg.explicit_build = explicit_build
         lcl_pkg.explicit_build = is_make_dependency
         pkg_dict[pkg_name] = lcl_pkg
+        # if split package the name can defer
+        pkg_dict[lcl_pkg.name] = lcl_pkg
         if not lcl_pkg.error_info:
             for dependency in lcl_pkg.dependencies:
                 get_package_recursive(dependency,
@@ -627,8 +664,12 @@ def get_package_recursive(pkg_name,
     # check for the package in the AUR
     else:
         aur_pkg = PackageSource(pkg_name, remove_dowloaded_source, None)
+        if aur_pkg.name in pkg_dict:
+            return
         aur_pkg.explicit_build = explicit_build
         pkg_dict[pkg_name] = aur_pkg
+        # if split package the name can defer
+        pkg_dict[aur_pkg.name] = aur_pkg
         if not aur_pkg.error_info:
             for dependency in aur_pkg.dependencies:
                 get_package_recursive(dependency,
@@ -689,12 +730,16 @@ def build_package_recursive(pkg_name,
                pkg_dependency.build_status == 1:
                 dependency_changed = True
 
+    pkg._get_installation_status()
+    if pkg.installation_status == 1:
+        pkg.build_status = 2
+        return
+
     if dependency_changed:
         if pkg.makepkg(uid, gid):
             pkg.build_status = 1
         else:
             pkg.build_status = 3
-        return
     else:
         # rebuild only if new version is available
         if rebuild == 0:
@@ -703,7 +748,8 @@ def build_package_recursive(pkg_name,
                     pkg.build_status = 1
                 else:
                     pkg.build_status = 3
-                return
+            else:
+                pkg.build_status = 2
 
         # rebuild if explicit or a new version is available
         elif rebuild == 1:
@@ -712,7 +758,8 @@ def build_package_recursive(pkg_name,
                     pkg.build_status = 1
                 else:
                     pkg.build_status = 3
-                return
+            else:
+                pkg.build_status = 2
 
         # rebuild all
         elif rebuild == 2:
@@ -720,9 +767,9 @@ def build_package_recursive(pkg_name,
                 pkg.build_status = 1
             else:
                 pkg.build_status = 3
-            return
 
-    pkg.build_status = 2
+    if install_all_dependencies:
+        pkg.install()
     return
 
 
@@ -963,17 +1010,19 @@ def main(argv):
     os.makedirs(build_dir, exist_ok=True)
     os.chown(build_dir, args.uid, args.gid)
     for pkg_name in args.build_package_names:
-        build_package_recursive(pkg_name,
-                                pkg_dict,
-                                args.rebuild,
-                                args.install_all_dependencies,
-                                args.uid,
-                                args.gid)
+        if pkg_name in pkg_dict:
+            build_package_recursive(pkg_name,
+                                    pkg_dict,
+                                    args.rebuild,
+                                    args.install_all_dependencies,
+                                    args.uid,
+                                    args.gid)
 
     # print build statistics
     printInfo("\nBuild Statistics:")
     for pkg_name in args.build_package_names:
-        print_build_log(pkg_name, pkg_dict)
+        if pkg_name in pkg_dict:
+            print_build_log(pkg_name, pkg_dict)
 
 
 try:
