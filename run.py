@@ -776,7 +776,7 @@ def print_build_log_recursive(pkg_names, pkg_dict, prefix=''):
                 pkg, "Failed: " + str(pkg.error_info), log_prefix))
         else:
             if type(pkg) == PacmanPackage:
-                log.append(log_prefix + format_log(pkg, "Installed"))
+                log.append(log_prefix + format_log(pkg, "Official Pacman package"))
             else:
                 mkdep = [dep for dep in pkg.make_dependencies]
                 dep = [dep for dep in pkg.dependencies if type(
@@ -822,27 +822,30 @@ def print_build_log(pkg_name, pkg_dict):
         log.append(format_log(pkg, "Failed: " + str(pkg.error_info)))
         successfull_build = False
     else:
-        mkdep = [dep for dep in pkg.make_dependencies]
-        dep = [dep for dep in pkg.dependencies if type(
-            pkg_dict[dep]) == PackageSource]
-        successfull_build, log_dep = print_build_log_recursive(
-            mkdep + dep,
-            pkg_dict,
-            '')
-        if successfull_build or pkg.build_status == 4:
-            if pkg.build_status == 2:
-                log.append(format_log(pkg, "Skipped build"))
-            elif pkg.build_status == 3:
-                log.append(format_log(pkg, "Failed"))
-                successfull_build = False
-            elif pkg.build_status == 4:
-                log.append(format_log(pkg, "Dependency Failed"))
-                successfull_build = False
-            else:
-                log.append(format_log(pkg, "Successfull build"))
+        if type(pkg) == PacmanPackage:
+            log.append(format_log(pkg, "Official Pacman package"))
         else:
-            log.append(format_log(pkg, "Dependency Failed"))
-        log = log + log_dep
+            mkdep = [dep for dep in pkg.make_dependencies]
+            dep = [dep for dep in pkg.dependencies if type(
+                pkg_dict[dep]) == PackageSource]
+            successfull_build, log_dep = print_build_log_recursive(
+                mkdep + dep,
+                pkg_dict,
+                '')
+            if successfull_build or pkg.build_status == 4:
+                if pkg.build_status == 2:
+                    log.append(format_log(pkg, "Skipped build"))
+                elif pkg.build_status == 3:
+                    log.append(format_log(pkg, "Failed"))
+                    successfull_build = False
+                elif pkg.build_status == 4:
+                    log.append(format_log(pkg, "Dependency Failed"))
+                    successfull_build = False
+                else:
+                    log.append(format_log(pkg, "Successfull build"))
+            else:
+                log.append(format_log(pkg, "Dependency Failed"))
+            log = log + log_dep
 
     for line in log:
         if successfull_build:
