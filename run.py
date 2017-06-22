@@ -57,7 +57,7 @@ class NoSuchPackageError(Exception):
 
 
 def printInfo(message):
-    """ Prints a colorful info message
+    """Print a colorful info message.
 
     Args:
         message (str): Message to be printed
@@ -67,7 +67,7 @@ def printInfo(message):
 
 
 def printSuccessfull(message):
-    """ Prints a colorful successfull message
+    """Print a colorful successfull message.
 
     Args:
         message (str): Message to be printed
@@ -77,7 +77,7 @@ def printSuccessfull(message):
 
 
 def printWarning(message):
-    """ Prints a colorful warning message
+    """Print a colorful warning message.
 
     Args:
         message (str): Message to be printed
@@ -87,7 +87,7 @@ def printWarning(message):
 
 
 def printError(message):
-    """ Prints a colorful error message
+    """Print a colorful error message.
 
     Args:
         message (str): Message to be printed
@@ -97,9 +97,8 @@ def printError(message):
 
 
 class PackageRepository:
-    """ Represents an enum of all package repositories
+    """Represents an enum of all package repositories."""
 
-    """
     CORE = "core"
     EXTRA = "extra"
     COMMUNITY = "community"
@@ -109,12 +108,13 @@ class PackageRepository:
 
 
 class PackageBase:
-    """ Base class for pacman packages and their sources
+    """Base class for pacman packages and their sources.
 
     Args:
         name (str): Name of the Arch Linux package
 
     """
+
     name = None
     version = None
     architecture = None
@@ -166,9 +166,7 @@ class PackageBase:
         self.cache_available = 0
 
     def _get_installation_status(self):
-        """
-
-        """
+        """Get the installation status of the package."""
         if pacman.is_installed(self.name):
             pcm_info = pacman.get_info(self.name)
             if pcm_info['Version'] == self.version:
@@ -180,7 +178,7 @@ class PackageBase:
 
 
 class PacmanPackage(PackageBase):
-    """ Represents a pacman package from a official repository
+    """Represents a pacman package from a official repository.
 
     Args:
         name (str): Name of the pacman package
@@ -197,9 +195,7 @@ class PacmanPackage(PackageBase):
             self.error_info = e
 
     def _get_package_info(self):
-        """
-
-        """
+        """Get the needed package information."""
         is_available = False
         for pcm_info in packages_in_offical_repositories:
             if pcm_info['id'] == self.name:
@@ -242,7 +238,7 @@ class PacmanPackage(PackageBase):
 
 
 class PackageSource(PackageBase):
-    """ Represents a source of a package
+    """Represents a source of a package.
 
     Args:
         name (str): Name of the package
@@ -252,6 +248,7 @@ class PackageSource(PackageBase):
         local_source_path (str): Local path of the source. If 'None' the pckage will be fetched from the AUR
 
     """
+
     # path that contains the package source
     path = None
 
@@ -296,7 +293,7 @@ class PackageSource(PackageBase):
             self.error_info = e
 
     def _parse_from_string(self, name, string):
-        """ Parses a bash variable value from a string
+        """Parse a bash variable value from a string.
 
         Args:
             name (str): Name of the variable to be parsed
@@ -321,7 +318,7 @@ class PackageSource(PackageBase):
         return None
 
     def _get_dependencies_from_alias(self, dep_alias_names):
-        """ Get the real package names if only an alias was supplied
+        """Get the real package names if only an alias was supplied.
 
         Args:
             dep_alias_names (list): (Alias-)Names of the packages
@@ -348,9 +345,7 @@ class PackageSource(PackageBase):
         return dependencies
 
     def _parse_pkgbuild_file(self):
-        """ Parses package information from PKGBUILD file
-
-        """
+        """Parse package information from PKGBUILD file."""
         pkgbuild_file = os.path.join(self.path, "PKGBUILD")
         with open(pkgbuild_file, 'r') as f:
             file_content = f.read()
@@ -397,9 +392,7 @@ class PackageSource(PackageBase):
         self.repository = PackageRepository.LOCAL
 
     def _copy_source_to_build_dir(self):
-        """ Copy the package source to the build dir
-
-        """
+        """Copy the package source to the build dir."""
         pkg_build_dir = os.path.join(build_dir, self.name)
 
         if os.path.exists(pkg_build_dir) and \
@@ -427,9 +420,7 @@ class PackageSource(PackageBase):
         self.path = pkg_build_dir
 
     def _download_aur_package_source(self):
-        """ Fetch package source from the AUR
-
-        """
+        """Fetch package source from the AUR."""
         aur_pkg_download_path = tempfile.mkdtemp()
         try:
             i = aur.info(self.name)
@@ -452,7 +443,7 @@ class PackageSource(PackageBase):
         self.path = os.path.join(aur_pkg_download_path, i.name)
 
     def makepkg(self, uid, gid):
-        """ Runs makepkg
+        """Run makepkg.
 
         Args:
             uid (int): UID of the build user
@@ -462,7 +453,6 @@ class PackageSource(PackageBase):
             bool.  True if build was successfull, False if not
 
         """
-
         self._copy_source_to_build_dir()
 
         # set uid and gid of the build dir
@@ -506,7 +496,7 @@ class PackageSource(PackageBase):
         return True
 
     def get_package_file_name(self):
-        """ Gets the pacman package file name
+        """Get the pacman package file name.
 
         Returns:
             str.  The name of the package
@@ -516,7 +506,7 @@ class PackageSource(PackageBase):
             self.name, self.version, self.architecture)
 
     def get_all_dependencies(self):
-        """ Gets dependencies and make dependencies together
+        """Get dependencies and make dependencies together.
 
         Returns:
             list.  Names of all dependencies
@@ -526,15 +516,24 @@ class PackageSource(PackageBase):
 
 
 def change_user(uid):
-    """ Temporarily change the UID and GID for code execution
-
-    """
+    """Temporarily change the UID and GID for code execution."""
     def set_uid_and_guid():
         os.setuid(uid)
     return set_uid_and_guid
 
 
 def run_command(command, uid=None, print_output=True):
+    """Run a command in a subprocess.
+
+    Args:
+        command (string): Command to run
+        uid (int): UID of the user to run with
+        print_output (bool): True if the output should be printed to stdout and stderr
+
+    Returns:
+        (int, list).  Return code of the subprocess and the stderr if any
+
+    """
     if uid:
         process = Popen(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, preexec_fn=change_user(uid))
     else:
@@ -567,7 +566,7 @@ def get_package_recursive(pkg_name,
                           locally_available_package_sources,
                           remove_dowloaded_source,
                           is_make_dependency):
-    """ Gets a package and all their dependencies
+    """Get a package and all their dependencies.
 
     Args:
         pkg_name (str): Name of the package
@@ -580,7 +579,6 @@ def get_package_recursive(pkg_name,
         is_make_dependency (bool): True if package shall be installed as a make dependency
 
     """
-
     # check if package is already in pkg_dict
     if pkg_name in pkg_dict:
         return
@@ -644,7 +642,7 @@ def build_package_recursive(pkg_name,
                             install_all_dependencies,
                             uid,
                             gid):
-    """ Build a package and all their dependencies
+    """Build a package and all their dependencies.
 
     Args:
         pkg_name (str): Name of the package
@@ -657,7 +655,6 @@ def build_package_recursive(pkg_name,
         gid (int): GID of the build user
 
     """
-
     pkg = pkg_dict[pkg_name]
 
     # break if a error occurred
@@ -720,7 +717,7 @@ def build_package_recursive(pkg_name,
 
 
 def format_log(pkg, msg, prefix=''):
-    """ Formats a build log for a given packge
+    """Format a build log for a given packge.
 
     Args:
         pkg (PackageBase): The package
@@ -743,7 +740,7 @@ def format_log(pkg, msg, prefix=''):
 
 
 def print_build_log_recursive(pkg_names, pkg_dict, prefix=''):
-    """ Recursivly prints a build log for a given package
+    """Recursivly prints a build log for a given package.
 
     Args:
         pkg_names (PackageBase): The package
@@ -801,7 +798,7 @@ def print_build_log_recursive(pkg_names, pkg_dict, prefix=''):
 
 
 def print_build_log(pkg_name, pkg_dict):
-    """ Recursivly prints a build log for a given package
+    """Recursivly prints a build log for a given package.
 
     Args:
         pkg_names (PackageBase): The package
@@ -851,7 +848,7 @@ def enumerate_package_names(sequence):
 
 
 def main(argv):
-    """ Main logic
+    """Run the main logic.
 
     Args:
         argv (list): Command line arguments
