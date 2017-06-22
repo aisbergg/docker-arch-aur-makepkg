@@ -534,7 +534,7 @@ def change_user(uid):
     return set_uid_and_guid
 
 
-def run_command(command, uid=None):
+def run_command(command, uid=None, print_output=True):
     if uid:
         process = Popen(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, preexec_fn=change_user(uid))
     else:
@@ -543,17 +543,20 @@ def run_command(command, uid=None):
     while True:
         out = process.stdout.readline()
         if out:
-            print(out.rstrip('\n'))
+            if print_output:
+                print(out.rstrip('\n'))
         if process.poll() is not None:
             break
         time.sleep(.05)
 
-    for line in process.stdout.readlines():
-        print(line)
+    if print_output:
+        for line in process.stdout.readlines():
+            print(line.rstrip('\n'))
     rc = process.poll()
     if rc != 0:
         for line in process.stderr.readlines():
-            printError(line.rstrip('\n'))
+            if print_output:
+                printError(line.rstrip('\n'))
             err.append(line.rstrip('\n'))
     return (rc, err)
 
