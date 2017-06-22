@@ -411,8 +411,7 @@ class PackageSource(PackageBase):
                os.path.isfile(old_pkgbuild_file):
                 try:
                     old_pkg_source = PackageSource(
-                        self.name, pkg_build_dir,
-                        self.remove_dowloaded_source)
+                        self.name, False, pkg_build_dir)
                     if old_pkg_source.version == self.version:
                         if self.repository == PackageRepository.AUR:
                             shutil.rmtree(self.path, ignore_errors=True)
