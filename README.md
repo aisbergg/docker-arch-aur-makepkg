@@ -4,13 +4,13 @@ Dockerfile to build a Arch-Linux based container image to be used for automated 
 Using docker the build process of a package will be executed in a clean environment seperated from the host operating system. Therefore dependencies that where only needed for building a package won't pile up in your OS.
 
 - [Docker - Arch AUR makepkg](#docker-arch-aur-makepkg)
-	- [Why another one?](#why-another-one)
-	- [Build the image](#build-the-image)
-	- [Usage](#usage)
-		- [Invoke](#invoke)
-	- [Installing the build packages](#installing-the-build-packages)
-	- [Troubleshooting](#troubleshooting)
-	- [License](#license)
+  - [Why another one?](#why-another-one)
+  - [Build the image](#build-the-image)
+  - [Usage](#usage)
+    - [Invoke](#invoke)
+  - [Installing the build packages](#installing-the-build-packages)
+  - [Troubleshooting](#troubleshooting)
+  - [License](#license)
 
 ---
 
@@ -45,6 +45,10 @@ The directory structure in the container is as follows:
 │   │   └── bar            # Local source of 'foo'
 │   │       └── PKGBUILD
 │   └── build              # Path that will be used for building
+├── usr
+|   └── share
+|       └── pacman
+|           └── keyrings   # Pacman keyrings for signature checking
 └── var
     └── cache
         └── pacman
@@ -55,6 +59,7 @@ Three files and dirs need to be mounted into the container to work properly:
 - `/makepkg`: Your store for local sources and build sources fetched by `makepkg`
 - `/etc/pacman.conf`: Your personal pacman configuration
 - `/etc/pacman.d/mirrorlist`: Your preferred mirrorlist
+- `/usr/share/pacman/keyrings`: Your initial pacman keyrings
 - `/var/cache/pacman/pkg`: Your pacman package chache, where all packages will be stored
 
 ### Invoke
@@ -63,17 +68,18 @@ The basic command to run a container and build a few packages would be following
 ```bash
 docker run -it --rm \
   -v "~/makepkg:/makepkg" \
-  -v "/etc/pacman.conf:/etc/pacman.conf" \
-  -v "/etc/pacman.d/mirrorlist:/etc/pacman.d/mirrorlist" \
+  -v "/etc/pacman.conf:/etc/pacman.conf:ro" \
+  -v "/etc/pacman.d/mirrorlist:/etc/pacman.d/mirrorlist:ro" \
+  -v "/usr/share/pacman/keyrings/:/usr/share/pacman/keyrings/:ro" \
   -v "/var/cache/pacman/pkg:/var/cache/pacman/pkg" \
-  aisberg/arch-aur-makepkg package_1 package_2 ... package_N
+  aisberg/arch-aur-makepkg --keyrings archlinux,manjaro package_1 package_2 ... package_N
 ```
 
 In this example `~/mypackages` will be mounted as `\makepkg` and `package_1 package_2 ... package_N` are the names of the packages you like to build.
 There are a few optional arguments available that can be passed on together with the package names:
 
 ```
-usage: aur-makepkg [-h] [-g GID] [-i] [-p] [-r REBUILD]
+usage: aur-makepkg [-h] [-g GID] [-i] [-k KEYRINGS] [-p] [-r REBUILD]
                    [--remove-downloaded-source] [-u UID]
                    build_package_names [build_package_names ...]
 
@@ -88,6 +94,9 @@ optional arguments:
   -g GID, --gid GID     GID of the build user
   -i, --install-all-dependencies
                         Install all dependencies, not only 'make dependencies'
+  -k KEYRINGS, --keyrings KEYRINGS
+                        Pacman keyrings initialized prior building (comma
+                        seperated list)
   -p, --pacman-update   Update all installed pacman packages before build
   -r REBUILD, --rebuild REBUILD
                         Rebuild behaviour: 0: Build only new versions of
@@ -118,7 +127,7 @@ Packages that provide some system functionality and require the linux kernel hea
 
 > Signature issues
 
-If you mount a mirrorlist that is not directly tied to the official *ArchLinux* distribution, because it is from *Manjaro* for example, then the Pacman package database and keys in the GPG keychain defer. In this case the installation of packages may fail because the signatures could not be validated. To solve this problem `SigLevel` in the `pacman.conf` can be set to `SigLevel = Optional TrustAll`. You should be beware of the security implications! When running the container the `--pacman-update` argument should then be passed along, to update the packages from your custom mirror.
+If you running not an *ArchLinux* distribution, but a distribution that is based on *ArchLinux* like *Manjaro* for example, than you have different maintainer and therefore different keys in the GPG keychain. Therefore the installation of packages may fail because the signatures cannot be validated. To solve this problem the keyring must be initialized with different set of keys. Therefore your keyrings directory (see [Usage](#usage)) must be mounted into the container and then started with the extra argument `--keychain KEYRINGS`, where `KEYRINGS` is a comma seperated list of keyrings located in your keyrings directory.
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
