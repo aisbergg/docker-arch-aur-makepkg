@@ -867,6 +867,8 @@ def main(argv):
     parser.add_argument('-i', '--install-all-dependencies', action='store_true',
                         dest='install_all_dependencies', default=False,
                         help="Install all dependencies, not only 'make dependencies'")
+    parser.add_argument('-k', '--keyrings', dest='keyrings', default=None,
+                        help="Pacman keyrings initialized prior building (comma seperated list)")
     parser.add_argument('-p', '--pacman-update', action='store_true',
                         dest='pacman_update', default=False,
                         help="Update all installed pacman packages before build")
@@ -897,6 +899,14 @@ def main(argv):
     except Exception:
         os.system(
             "useradd -p /makepkg/build -m -g {1} -s /bin/bash -u {0} build-user".format(args.uid, args.gid))
+
+    # refresh pacman package database
+    if args.keyrings:
+        printInfo("Initializing pacman keyring...")
+        run_command(['pacman-key', '--init'], print_output=False)
+        rc, err = run_command(['pacman-key', '--populate'] + args.keyrings.split(','), print_output=True)
+        if rc != 0:
+            raise Exception("Failed to initialize Pacman keyrings: " + '\n'.join(err))
 
     # refresh pacman package database
     printInfo("Update pacman package database...")
