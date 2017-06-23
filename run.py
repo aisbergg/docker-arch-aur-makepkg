@@ -984,6 +984,7 @@ def main(argv):
             raise Exception("Failed to upgrade Pacman packages: " + '\n'.join(err))
 
     pkg_dict = dict()
+    build_package_names = [x.lower() for x in args.build_package_names]
 
     # look for local package sources
     locally_available_package_sources = []
@@ -996,7 +997,7 @@ def main(argv):
                 locally_available_package_sources.append(os.path.basename(d))
 
     # get packages and their dependencies
-    for pkg_name in args.build_package_names:
+    for pkg_name in build_package_names:
         printInfo("Collecting information about {0}...".format(pkg_name))
         get_package_recursive(pkg_name,
                               True,
@@ -1015,7 +1016,7 @@ def main(argv):
 
     # print build statistics
     printInfo("\nBuild Statistics:")
-    for pkg_name in args.build_package_names:
+    for pkg_name in build_package_names:
         if pkg_name in pkg_dict:
             print_build_log(pkg_name, pkg_dict)
 
