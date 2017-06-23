@@ -723,8 +723,14 @@ def build_package_recursive(pkg_name,
     # break if a error occurred
     if pkg.error_info:
         return
+    # break if the package has already been processed
+    if type(pkg) is PackageSource and pkg.build_status != 0:
+        return
 
     if type(pkg) is PacmanPackage:
+        # break if the package has already been processed
+        if pkg.installation_status < 0 or pkg.installation_status == 3:
+            return
         # install pacman package if it is a make dependency
         if (pkg.is_make_dependency or install_all_dependencies):
             pkg.install()
