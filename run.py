@@ -808,7 +808,7 @@ def format_log(pkg, msg, prefix=''):
     return "{0}: {1}".format(pkg.name, msg)
 
 
-def print_build_log_recursive(pkg_names, pkg_dict, prefix=''):
+def print_build_log_recursive(pkg_names, pkg_dict, prefix='', is_root=False):
     """Recursivly prints a build log for a given package.
 
     Args:
@@ -820,94 +820,76 @@ def print_build_log_recursive(pkg_names, pkg_dict, prefix=''):
         (bool, list).  Tuple consting of the build status and the log messages as a list
 
     """
-    successfull_build = True
+    success = True
     log = []
     log_prefix = prefix + '├── '
     intermediate_prefix = prefix + '|   '
     for pos, anchor, pkg_name in enumerate_package_names(pkg_names):
         pkg = pkg_dict[pkg_name]
-        if anchor == 1:
+        log_dep = []
+        if is_root:
+            log_prefix = ""
+            intermediate_prefix = ""
+        elif anchor == 1:
             log_prefix = prefix + '└── '
             intermediate_prefix = prefix + '    '
-        if pkg.error_info:
-            successfull_build = False
-            log.append(log_prefix + format_log(
-                pkg, "Failed: " + str(pkg.error_info), log_prefix))
+        if type(pkg) == PacmanPackage:
+            if pkg.installation_status < 0:
+                success = False
+                log.append(log_prefix + format_log(
+                    pkg, "Failed to install: " + str(pkg.error_info), intermediate_prefix))
+            elif pkg.installation_status == 0:
+                log.append(log_prefix + format_log(pkg, "Not installed"))
+            elif pkg.installation_status == 1:
+                log.append(log_prefix + format_log(pkg, "Skipped install"))
+            elif pkg.installation_status == 3:
+                log.append(log_prefix + format_log(pkg, "Successfully installed"))
         else:
-            if type(pkg) == PacmanPackage:
-                log.append(log_prefix + format_log(pkg, "Official Pacman package"))
-            else:
-                mkdep = [dep for dep in pkg.make_dependencies]
-                dep = [dep for dep in pkg.dependencies if type(
-                    pkg_dict[dep]) == PackageSource]
-                successfull_build, log_dep = print_build_log_recursive(
-                    mkdep + dep,
+            deps = pkg.get_all_dependencies()
+            if len(deps) > 0:
+                success, log_dep = print_build_log_recursive(
+                    deps,
                     pkg_dict,
                     intermediate_prefix)
-                if successfull_build:
-                    if pkg.build_status == 2:
-                        log.append(
-                            log_prefix + format_log(pkg, "Skipped build"))
-                    elif pkg.build_status == 3:
-                        log.append(log_prefix + format_log(pkg, "Failed"))
-                        successfull_build = False
-                    elif pkg.build_status == 4:
-                        log.append(log_prefix + format_log(
-                            pkg, "Dependency Failed"))
-                        successfull_build = False
-                    else:
-                        log.append(log_prefix + format_log(
-                            pkg, "Successfull build"))
-                else:
-                    log.append(
-                        log_prefix + format_log(pkg, "Dependency Failed"))
-                log = log + log_dep
 
-    return successfull_build, log
+            if not success:
+                log.append(log_prefix + format_log(
+                    pkg, "Dependency Failed: " + str(pkg.error_info), intermediate_prefix))
+            elif pkg.error_info:
+                success = False
+                log.append(log_prefix + format_log(
+                    pkg, "Failed: " + str(pkg.error_info), intermediate_prefix))
+            else:
+                if pkg.installation_status == 2:
+                    log.append(log_prefix + format_log(
+                        pkg, "Skipped"))
+                elif pkg.installation_status == 3:
+                    log.append(log_prefix + format_log(pkg, "Failed"))
+                    success = False
+                elif pkg.installation_status == 4:
+                    log.append(log_prefix + format_log(pkg, "Dependency Failed"))
+                    success = False
+                else:
+                    log.append(log_prefix + format_log(
+                        pkg, "Successfully build"))
+
+        log = log + log_dep
+
+    return success, log
 
 
 def print_build_log(pkg_name, pkg_dict):
-    """Recursivly prints a build log for a given package.
+    """Print a build log for a given package.
 
     Args:
         pkg_names (PackageBase): The package
         pkg_dict (dict): Store for package information
 
     """
-    log = []
-    successfull_build = True
-    pkg = pkg_dict[pkg_name]
-    if pkg.error_info:
-        log.append(format_log(pkg, "Failed: " + str(pkg.error_info)))
-        successfull_build = False
-    else:
-        if type(pkg) == PacmanPackage:
-            log.append(format_log(pkg, "Official Pacman package"))
-        else:
-            mkdep = [dep for dep in pkg.make_dependencies]
-            dep = [dep for dep in pkg.dependencies if type(
-                pkg_dict[dep]) == PackageSource]
-            successfull_build, log_dep = print_build_log_recursive(
-                mkdep + dep,
-                pkg_dict,
-                '')
-            if successfull_build or pkg.build_status == 4:
-                if pkg.build_status == 2:
-                    log.append(format_log(pkg, "Skipped build"))
-                elif pkg.build_status == 3:
-                    log.append(format_log(pkg, "Failed"))
-                    successfull_build = False
-                elif pkg.build_status == 4:
-                    log.append(format_log(pkg, "Dependency Failed"))
-                    successfull_build = False
-                else:
-                    log.append(format_log(pkg, "Successfull build"))
-            else:
-                log.append(format_log(pkg, "Dependency Failed"))
-            log = log + log_dep
-
+    success, log = print_build_log_recursive(
+        [pkg_name], pkg_dict, '', True)
     for line in log:
-        if successfull_build:
+        if success:
             printSuccessfull(line)
         else:
             printError(line)
