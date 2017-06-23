@@ -134,10 +134,12 @@ class PackageBase:
     is_make_dependency = False
 
     # status of the installtion
+    #   -2: dependency failed to install
+    #   -1: failed to install
     #   0: is not installed
     #   1: is installed
     #   2: different version is installed
-    #   3: failed to install
+    #   3: successfully installed
     installation_status = 0
 
     # store for errors
@@ -226,18 +228,21 @@ class PacmanPackage(PackageBase):
 
     def install(self):
         """Install the Pacman package."""
-        if self.installation_status != 1:
+        if not (self.installation_status == 1 or self.installation_status == 3):
             printInfo("Installing package {0} {1}...".format(
                 self.name, self.version))
-            rc, out, err = run_command(['pacman', '-S', '--noconfirm', '--force',
-                                        '--ignore', 'package-query', '--ignore', 'pacman-mirrorlist',
-                                        '--cachedir', pacman_cache_dir, self.name])
+
+            rc, out, err = run_command(['pacman', '-S', '--force', '--needed',
+                                        '--noconfirm', '--noprogressbar',
+                                        '--ignore', 'package-query', '--ignore',
+                                        'pacman-mirrorlist', '--cachedir',
+                                        pacman_cache_dir, self.name])
             if rc != 0:
-                self.installation_status = 2
+                self.installation_status = -1
                 self.error_info = Exception(
-                    "Failed to install package '{0}': {1}".format(self.name, '\n'.join(err)))
-                return
-            self.installation_status = 1
+                    "Failed to install package {0}: {1}".format(self.name, '\n'.join(err)))
+            else:
+                self.installation_status = 3
 
 
 class PackageSource(PackageBase):
@@ -531,7 +536,8 @@ class PackageSource(PackageBase):
 
     def install(self):
         """Install the build package."""
-        if self.installation_status != 1 and (self.build_status == 1 or self.build_status == 2):
+        if not (self.installation_status == 1 or self.installation_status == 3)\
+           and (self.build_status == 1 or self.build_status == 2):
             pkg_names = [self.name]
             # different names if package is a splitted package
             if self.split_package_names:
@@ -540,17 +546,18 @@ class PackageSource(PackageBase):
             for pkg_name in pkg_names:
                 printInfo("Installing package {0} {1}...".format(
                     pkg_name, self.version))
-                rc, out, err = run_command(['pacman', '-U', '--noconfirm', '--force',
-                                       '--ignore', 'package-query', '--ignore', 'pacman-mirrorlist',
-                                       '--cachedir', pacman_cache_dir,
-                                       os.path.join(pacman_cache_dir, '{0}-{1}-{2}.pkg.tar.xz'.format(
-                                           pkg_name, self.version, self.architecture))])
+                rc, out, err = run_command(
+                    ['pacman', '-U', '--noconfirm', '--force', '--ignore',
+                     'package-query', '--ignore', 'pacman-mirrorlist',
+                     '--cachedir', pacman_cache_dir, os.path.join(
+                        pacman_cache_dir, '{0}-{1}-{2}.pkg.tar.xz'.format(
+                            pkg_name, self.version, self.architecture))])
                 if rc != 0:
-                    self.installation_status = 2
+                    self.installation_status = -1
                     self.error_info = Exception(
                         "Failed to install package '{0}': {1}".format(pkg_name, '\n'.join(err)))
                     return False
-                self.installation_status = 1
+                self.installation_status = 3
 
 
 def change_user(uid):
@@ -719,7 +726,7 @@ def build_package_recursive(pkg_name,
 
     if type(pkg) is PacmanPackage:
         # install pacman package if it is a make dependency
-        if (pkg.is_make_dependency or install_all_dependencies) and pkg.installation_status != 1:
+        if (pkg.is_make_dependency or install_all_dependencies):
             pkg.install()
         return
 
@@ -735,8 +742,8 @@ def build_package_recursive(pkg_name,
                pkg_dependency.build_status == 1:
                 dependency_changed = True
 
-    pkg._get_installation_status()
-    if pkg.installation_status == 1:
+    pkg.get_installation_status()
+    if pkg.installation_status == 1 or pkg.installation_status == 3:
         pkg.build_status = 2
         return
 
