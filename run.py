@@ -34,7 +34,7 @@ class ConsoleColors:
 
 
 class InvalidPackageSourceError(Exception):
-    """ Invalid package source exception
+    """Invalid package source exception.
 
     Args:
         message (str): Message passed with the exception
@@ -46,7 +46,7 @@ class InvalidPackageSourceError(Exception):
 
 
 class NoSuchPackageError(Exception):
-    """ No such package exception
+    """No such package exception.
 
     Args:
         message (str): Message passed with the exception
@@ -815,6 +815,7 @@ def print_build_log_recursive(pkg_names, pkg_dict, prefix='', is_root=False):
         pkg_names (PackageBase): The package
         pkg_dict (dict): Store for package information
         prefix (str): Prefix for the message
+        is_root (bool): True if first recursion
 
     Returns:
         (bool, list).  Tuple consting of the build status and the log messages as a list
@@ -973,8 +974,9 @@ def main(argv):
         # upgrade installed pacman packages
         printInfo("Upgrading installed pacman packages...")
         rc, out, err = run_command(['pacman', '-Su', '--noconfirm', '--force',
-                               '--ignore', 'package-query', '--ignore', 'pacman-mirrorlist',
-                               '--cachedir', pacman_cache_dir], print_output=True)
+                                    '--ignore', 'package-query', '--ignore',
+                                    'pacman-mirrorlist', '--cachedir',
+                                    pacman_cache_dir], print_output=True)
         if rc != 0:
             raise Exception("Failed to upgrade Pacman packages: " + '\n'.join(err))
 
