@@ -168,12 +168,8 @@ class PackageBase:
 
     def _get_installation_status(self):
         """Get the installation status of the package."""
-        p = Popen(['package-query', '-Qiif', '%n', self.name],
-                  stdout=PIPE,
-                  stderr=PIPE,
-                  universal_newlines=True)
-        out, err = p.communicate()
-        if p.returncode == 0:
+        rc, out, err = run_command(['package-query', '-Qiif', '%n', self.name], print_output=False)
+        if rc == 0:
             pcm_info = pacman.get_info(out.strip('\n '))
             if pcm_info['Version'] == self.version:
                 self.installation_status = 1
@@ -234,9 +230,9 @@ class PacmanPackage(PackageBase):
         if self.installation_status != 1:
             printInfo("Installing package {0} {1}...".format(
                 self.name, self.version))
-            rc, err = run_command(['pacman', '-S', '--noconfirm', '--force',
-                                   '--ignore', 'package-query', '--ignore', 'pacman-mirrorlist',
-                                   '--cachedir', pacman_cache_dir, self.name])
+            rc, out, err = run_command(['pacman', '-S', '--noconfirm', '--force',
+                                        '--ignore', 'package-query', '--ignore', 'pacman-mirrorlist',
+                                        '--cachedir', pacman_cache_dir, self.name])
             if rc != 0:
                 self.installation_status = 2
                 self.error_info = Exception(
@@ -346,12 +342,9 @@ class PackageSource(PackageBase):
             for dep_alias_name in dep_alias_names:
                 dep_alias_name = re.sub(r'(.+?)(<|<=|>|>=){1}.*?$', r'\1',
                                         dep_alias_name)
-                p = Popen(['package-query', '-QSiif', '%n', dep_alias_name],
-                          stdout=PIPE,
-                          stderr=PIPE,
-                          universal_newlines=True)
-                out, err = p.communicate()
-                if p.returncode == 0:
+
+                rc, out, err = run_command(['package-query', '-QSiif', '%n', dep_alias_name], print_output=False)
+                if rc == 0:
                     dependencies.append(out.splitlines()[-1])
                 else:
                     dependencies.append(dep_alias_name)
@@ -491,7 +484,7 @@ class PackageSource(PackageBase):
             self.name, self.version))
         os.chdir(self.path)
 
-        rc, err = run_command(['makepkg', '--force', '--nodeps', '--noconfirm'], uid)
+        rc, out, err = run_command(['makepkg', '--force', '--nodeps', '--noconfirm'], uid)
         if rc != 0:
             self.error_info = Exception("Failed to build package '{0}': {1}".format(
                 self.name, '\n'.join(err)))
@@ -545,7 +538,7 @@ class PackageSource(PackageBase):
             for pkg_name in pkg_names:
                 printInfo("Installing package {0} {1}...".format(
                     pkg_name, self.version))
-                rc, err = run_command(['pacman', '-U', '--noconfirm', '--force',
+                rc, out, err = run_command(['pacman', '-U', '--noconfirm', '--force',
                                        '--ignore', 'package-query', '--ignore', 'pacman-mirrorlist',
                                        '--cachedir', pacman_cache_dir,
                                        os.path.join(pacman_cache_dir, '{0}-{1}-{2}.pkg.tar.xz'.format(
@@ -574,33 +567,43 @@ def run_command(command, uid=None, print_output=True):
         print_output (bool): True if the output should be printed to stdout and stderr
 
     Returns:
-        (int, list).  Return code of the subprocess and the stderr if any
+        (int, list, list).  Return code of the subprocess, sdtout and stderr
 
     """
     if uid:
         process = Popen(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, preexec_fn=change_user(uid))
     else:
         process = Popen(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
-    err = []
-    while True:
-        out = process.stdout.readline()
-        if out:
-            if print_output:
-                print(out.rstrip('\n'))
-        if process.poll() is not None:
-            break
-        time.sleep(.05)
-
     if print_output:
+        err = []
+        out = []
+        while True:
+            tmp = process.stdout.readline()
+            if tmp:
+                tmp = tmp.rstrip('\n ')
+                if tmp != '':
+                    out.append(tmp)
+                    print(tmp)
+            if process.poll() is not None:
+                break
+            time.sleep(.05)
+
         for line in process.stdout.readlines():
-            print(line.rstrip('\n'))
-    rc = process.poll()
-    if rc != 0:
-        for line in process.stderr.readlines():
-            if print_output:
-                printError(line.rstrip('\n'))
-            err.append(line.rstrip('\n'))
-    return (rc, err)
+            tmp = line.rstrip('\n ')
+            out.append(tmp)
+            print(tmp)
+        rc = process.poll()
+        if rc != 0:
+            for line in process.stderr.readlines():
+                tmp = line.rstrip('\n ')
+                printError(tmp)
+                err.append(tmp)
+        return (rc, out, err)
+
+    else:
+        out, err = process.communicate()
+        rc = process.returncode
+        return (rc, out.splitlines(), err.splitlines())
 
 
 def get_package_recursive(pkg_name,
@@ -962,7 +965,7 @@ def main(argv):
     if args.keyrings:
         printInfo("Initializing pacman keyring...")
         run_command(['pacman-key', '--init'], print_output=False)
-        rc, err = run_command(['pacman-key', '--populate'] + args.keyrings.split(','), print_output=True)
+        rc, out, err = run_command(['pacman-key', '--populate'] + args.keyrings.split(','), print_output=True)
         if rc != 0:
             raise Exception("Failed to initialize Pacman keyrings: " + '\n'.join(err))
 
@@ -978,7 +981,7 @@ def main(argv):
     if args.pacman_update:
         # upgrade installed pacman packages
         printInfo("Upgrading installed pacman packages...")
-        rc, err = run_command(['pacman', '-Su', '--noconfirm', '--force',
+        rc, out, err = run_command(['pacman', '-Su', '--noconfirm', '--force',
                                '--ignore', 'package-query', '--ignore', 'pacman-mirrorlist',
                                '--cachedir', pacman_cache_dir], print_output=True)
         if rc != 0:
