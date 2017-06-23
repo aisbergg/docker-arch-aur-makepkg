@@ -120,7 +120,7 @@ class PackageBase:
     version = None
     architecture = None
     repository = None
-    dependencies = None
+    dependencies = []
     license = None
 
     # is a cached version of this package available
@@ -261,7 +261,7 @@ class PackageSource(PackageBase):
     path = None
 
     # the dependencies that need to be installed prior build
-    make_dependencies = None
+    make_dependencies = []
 
     # is marked as an explicit build, so it is not a dependency of another
     # package
@@ -735,7 +735,7 @@ def build_package_recursive(pkg_name,
         if (pkg.is_make_dependency or install_all_dependencies):
             pkg.install()
         return
-
+    print("3")
     dependency_changed = False
     for dependency in pkg.get_all_dependencies():
         pkg_dependency = pkg_dict[dependency]
@@ -747,7 +747,7 @@ def build_package_recursive(pkg_name,
             if type(pkg_dependency) is PackageSource and \
                pkg_dependency.build_status == 1:
                 dependency_changed = True
-
+    print("4")
     pkg.get_installation_status()
     if pkg.installation_status == 1 or pkg.installation_status == 3:
         pkg.build_status = 2
