@@ -320,7 +320,7 @@ class PackageSource(PackageBase):
 
         """
         # search for array like value
-        match = re.compile(r'{0}=\(([^\)]+)\)'.format(name),
+        match = re.compile(r'{0}=\(([^\)]*)\)'.format(name),
                            re.DOTALL).search(string)
         if match:
             m = match.group(1).replace('\n', '').replace('"', '').replace('\'', '')
