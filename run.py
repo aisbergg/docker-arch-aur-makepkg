@@ -867,18 +867,18 @@ def print_build_log_recursive(pkg_names, pkg_dict, prefix='', is_root=False):
                 log.append(log_prefix + format_log(
                     pkg, "Failed: " + str(pkg.error_info), intermediate_prefix))
             else:
-                if pkg.installation_status == 2:
-                    log.append(log_prefix + format_log(
-                        pkg, "Skipped"))
-                elif pkg.installation_status == 3:
-                    log.append(log_prefix + format_log(pkg, "Failed"))
-                    success = False
-                elif pkg.installation_status == 4:
-                    log.append(log_prefix + format_log(pkg, "Dependency Failed"))
-                    success = False
-                else:
+                if pkg.build_status == 1:
                     log.append(log_prefix + format_log(
                         pkg, "Successfully build"))
+                elif pkg.build_status == 2:
+                    log.append(log_prefix + format_log(
+                        pkg, "Skipped"))
+                elif pkg.build_status == 3:
+                    log.append(log_prefix + format_log(pkg, "Failed"))
+                    success = False
+                elif pkg.build_status == 4:
+                    log.append(log_prefix + format_log(pkg, "Dependency Failed"))
+                    success = False
 
         log = log + log_dep
 
