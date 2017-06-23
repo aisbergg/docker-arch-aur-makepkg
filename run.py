@@ -319,7 +319,8 @@ class PackageSource(PackageBase):
         match = re.compile(r'{0}=\(([^\)]+)\)'.format(name),
                            re.DOTALL).search(string)
         if match:
-            return [x.strip('\"\'') for x in match.group(1).replace('\n', '').replace('"', '').replace('\'', '').split(' ') if x != '']
+            m = match.group(1).replace('\n', '').replace('"', '').replace('\'', '')
+            return [x.strip('\"\'') for x in re.compile(r'\s').split(m) if x != '']
         else:
             # search for simple string value
             match = re.compile(r'{0}=(.+)'.format(name)).search(string)
@@ -345,7 +346,7 @@ class PackageSource(PackageBase):
 
                 rc, out, err = run_command(['package-query', '-QSiif', '%n', dep_alias_name], print_output=False)
                 if rc == 0:
-                    dependencies.append(out.splitlines()[-1])
+                    dependencies.append(out[-1])
                 else:
                     dependencies.append(dep_alias_name)
 
@@ -388,6 +389,8 @@ class PackageSource(PackageBase):
 
         # package license
         self.license = self._parse_from_string('license', file_content)
+        if type(self.license) == list:
+            self.license = self.license[0]
 
         # raise an error if PKGBUILD file does not contain mandatory variables
         if not self.name or \
