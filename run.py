@@ -166,11 +166,10 @@ class PackageBase:
 
         self.cache_available = 0
 
-    def _get_installation_status(self):
+    def get_installation_status(self):
         """Get the installation status of the package."""
-        rc, out, err = run_command(['package-query', '-Qiif', '%n', self.name], print_output=False)
-        if rc == 0:
-            pcm_info = pacman.get_info(out.strip('\n '))
+        if pacman.is_installed(self.name):
+            pcm_info = pacman.get_info(self.name)
             if pcm_info['Version'] == self.version:
                 self.installation_status = 1
             else:
@@ -192,7 +191,7 @@ class PacmanPackage(PackageBase):
         try:
             self._get_package_info()
             self._check_if_cache_is_available()
-            self._get_installation_status()
+            self.get_installation_status()
         except Exception as e:
             self.error_info = e
 
@@ -298,7 +297,7 @@ class PackageSource(PackageBase):
 
             self._parse_pkgbuild_file()
             self._check_if_cache_is_available()
-            self._get_installation_status()
+            self.get_installation_status()
         except Exception as e:
             self.error_info = e
 
